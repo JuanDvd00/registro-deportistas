@@ -37,8 +37,13 @@ def cargar_datos():
 
 df_orig = cargar_datos()
 
-# === Entrenar modelo de altura futura ===
-X_altura = df_orig[['Edad', 'Peso', 'Altura_m', 'PlTr', 'PlAbd', 'Test_Salto', 'Test_Cooper']]
+# === Entrenar modelo de altura futura (con todos los pliegues y perímetros) ===
+X_altura = df_orig[[
+    'Edad', 'Peso', 'Altura_m',
+    'PlTr', 'PlSubEsc', 'PlCI', 'PlAbd', 'PlMM', 'PlPant',  # Pliegues
+    'PerBrazoRel', 'PerBrazoCon', 'PerT', 'PerCin', 'PerCad', 'PerMuslo', 'PerPier',  # Perímetros
+    'Test_Salto', 'Test_Cooper', 'Test_FlexCLS'  # Pruebas físicas
+]]
 y_altura = df_orig['Altura_m'] + np.random.uniform(0.02, 0.08, len(df_orig))  # Simular crecimiento
 
 X_train, X_test, y_train, y_test = train_test_split(X_altura, y_altura, test_size=0.2, random_state=42)
@@ -46,7 +51,12 @@ modelo_altura = RandomForestRegressor(n_estimators=100, random_state=42)
 modelo_altura.fit(X_train, y_train)
 
 # === Entrenar modelo de recomendación ===
-X_deporte = df_orig[['Edad', 'Peso', 'Altura_m', 'Test_Salto', 'Test_Cooper', 'Test_FlexCLS', 'PlAbd']]
+X_deporte = df_orig[[
+    'Edad', 'Peso', 'Altura_m',
+    'PlTr', 'PlSubEsc', 'PlCI', 'PlAbd', 'PlMM', 'PlPant',
+    'PerBrazoRel', 'PerBrazoCon', 'PerT', 'PerCin', 'PerCad', 'PerMuslo', 'PerPier',
+    'Test_Salto', 'Test_Cooper', 'Test_FlexCLS'
+]]
 y_deporte = df_orig['Deporte_Recomendado']
 modelo_deporte = RandomForestClassifier(n_estimators=100, random_state=42)
 modelo_deporte.fit(X_deporte, y_deporte)
@@ -68,8 +78,27 @@ with st.form("registro"):
     
     with col2:
         st.subheader("Pliegues Cutáneos (mm)")
-        pl_tr = st.number_input("Pliegue Tricipital", min_value=5, max_value=30, value=12)
-        pl_abd = st.number_input("Pliegue Abdominal", min_value=5, max_value=30, value=10)
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            pl_tr = st.number_input("Pliegue Tricipital", min_value=5, max_value=30, value=12)
+            pl_sub = st.number_input("Pliegue Subescapular", min_value=5, max_value=30, value=10)
+            pl_ci = st.number_input("Pliegue Cresta Ilíaca", min_value=5, max_value=30, value=12)
+        with col_p2:
+            pl_abd = st.number_input("Pliegue Abdominal", min_value=5, max_value=30, value=10)
+            pl_mm = st.number_input("Pliegue Muslo Medial", min_value=5, max_value=30, value=12)
+            pl_pant = st.number_input("Pliegue Pantorrilla", min_value=5, max_value=30, value=8)
+        
+        st.subheader("Perímetros Corporales (cm)")
+        col_per1, col_per2 = st.columns(2)
+        with col_per1:
+            per_brazo_rel = st.number_input("Brazo Relajado", min_value=20.0, max_value=40.0, value=28.0, step=0.1)
+            per_brazo_con = st.number_input("Brazo Contraído", min_value=25.0, max_value=45.0, value=32.0, step=0.1)
+            per_t = st.number_input("Torax", min_value=70.0, max_value=100.0, value=85.0, step=0.1)
+        with col_per2:
+            per_cin = st.number_input("Cintura", min_value=60.0, max_value=90.0, value=75.0, step=0.1)
+            per_cad = st.number_input("Cadera", min_value=80.0, max_value=100.0, value=90.0, step=0.1)
+            per_muslo = st.number_input("Muslo", min_value=40.0, max_value=60.0, value=52.0, step=0.1)
+            per_pier = st.number_input("Pierna", min_value=30.0, max_value=40.0, value=35.0, step=0.1)
         
         st.subheader("Pruebas Físicas")
         test_salto = st.number_input("Salto Vertical (m)", min_value=1.0, max_value=2.6, value=1.8, step=0.01)
@@ -83,12 +112,22 @@ if submit:
     altura_m = altura / 100.0 if altura >= 100 else altura
     
     # Predecir altura futura
-    entrada_altura = [[edad, peso, altura_m, pl_tr, pl_abd, test_salto, test_cooper]]
+    entrada_altura = [[
+        edad, peso, altura_m,
+        pl_tr, pl_sub, pl_ci, pl_abd, pl_mm, pl_pant,
+        per_brazo_rel, per_brazo_con, per_t, per_cin, per_cad, per_muslo, per_pier,
+        test_salto, test_cooper, test_flex
+    ]]
     altura_predicha = modelo_altura.predict(entrada_altura)[0]
     crecimiento = altura_predicha - altura_m
     
     # Predecir deporte
-    entrada_deporte = [[edad, peso, altura_m, test_salto, test_cooper, test_flex, pl_abd]]
+    entrada_deporte = [[
+        edad, peso, altura_m,
+        pl_tr, pl_sub, pl_ci, pl_abd, pl_mm, pl_pant,
+        per_brazo_rel, per_brazo_con, per_t, per_cin, per_cad, per_muslo, per_pier,
+        test_salto, test_cooper, test_flex
+    ]]
     deporte_pred = modelo_deporte.predict(entrada_deporte)[0]
     
     # Mostrar resultados
@@ -131,7 +170,11 @@ if submit:
         "Salto_Vertical": test_salto,
         "Cooper": test_cooper,
         "Flexibilidad": test_flex,
-        "Pliegue_Abd": pl_abd
+        "Pliegue_Abd": pl_abd,
+        "Pliegue_Tr": pl_tr,
+        "Pliegue_Sub": pl_sub,
+        "Perimetro_Brazo_Rel": per_brazo_rel,
+        "Perimetro_Brazo_Con": per_brazo_con
     }
     
     archivo = "nuevos_deportistas.xlsx"
@@ -148,4 +191,5 @@ if submit:
 
 st.markdown("---")
 st.caption("Desarrollado por Juan David Gutiérrez Ramírez – Proyecto Formativo SENA")
+
 
