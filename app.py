@@ -10,7 +10,7 @@ import os
 # === Cargar datos ===
 @st.cache_data
 def cargar_datos():
-    df = pd.read_excel("ANTROPOMETRIA_10000.xlsx")
+    df = pd.read_excel("ANTROPOMETRIA_10000_FINAL.xlsx")
     
     # Corregir altura
     def corregir_altura(x):
@@ -148,3 +148,4 @@ if submit:
 
 st.markdown("---")
 st.caption("Desarrollado por Juan David Gutiérrez Ramírez – Proyecto Formativo SENA")
+
