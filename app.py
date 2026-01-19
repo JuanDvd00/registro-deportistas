@@ -185,13 +185,60 @@ if submit:
         altura_m, test_salto, test_cooper, test_flex, per_muslo, per_pier
     )
     
-    # === ANÁLISIS REALISTA DE RESULTADOS ===
+    # === RESULTADOS PRINCIPALES ===
     st.success("✅ ¡Análisis completado!")
     st.subheader("📊 Resultados")
     st.write(f"**Altura actual:** {altura_m:.2f} m")
     st.write(f"**Altura proyectada a los 18:** {altura_predicha:.2f} m (+{crecimiento*100:.1f} cm)")
     st.write(f"**Posición recomendada en fútbol:** 🥇 **{posicion}**")
     st.write(f"*{descripcion}*")
+    
+    # === GRÁFICO 1: Altura actual vs predicha ===
+    st.subheader("📈 Comparación de Altura")
+    altura_data = pd.DataFrame({
+        'Tipo': ['Actual', 'Predicha a los 18'],
+        'Altura (m)': [altura_m, altura_predicha]
+    })
+    st.bar_chart(altura_data.set_index('Tipo'))
+    
+    # === GRÁFICO 2: Perfil físico (pliegues vs masa muscular) ===
+    st.subheader("📊 Perfil Físico")
+    grasa_promedio = (pl_tr + pl_sub + pl_abd + pl_ci) / 4
+    musculo_promedio = (per_brazo_con + per_muslo + per_pier) / 3
+    
+    perfil_data = pd.DataFrame({
+        'Componente': ['Grasa Corporal', 'Masa Muscular'],
+        'Valor': [grasa_promedio, musculo_promedio]
+    })
+    st.bar_chart(perfil_data.set_index('Componente'))
+    
+    # === GRÁFICO 3: Comparación con posición ideal ===
+    st.subheader("⚽ Comparación con Posición: " + posicion)
+    
+    # Valores de referencia por posición (basados en datos reales)
+    referencias = {
+        "Portero": {"Altura": 1.88, "Salto": 2.10, "Cooper": 2400},
+        "Defensa Central": {"Altura": 1.83, "Salto": 1.95, "Cooper": 2300},
+        "Lateral": {"Altura": 1.78, "Salto": 1.85, "Cooper": 2600},
+        "Mediocampista Defensivo": {"Altura": 1.76, "Salto": 1.80, "Cooper": 2700},
+        "Mediocampista Ofensivo": {"Altura": 1.75, "Salto": 1.85, "Cooper": 2500},
+        "Extremo": {"Altura": 1.74, "Salto": 1.90, "Cooper": 2550},
+        "Delantero Centro": {"Altura": 1.80, "Salto": 1.95, "Cooper": 2400},
+        "Segundo Delantero": {"Altura": 1.77, "Salto": 1.85, "Cooper": 2450},
+        "Jugador Polivalente": {"Altura": 1.75, "Salto": 1.80, "Cooper": 2500}
+    }
+    
+    ref = referencias.get(posicion, referencias["Jugador Polivalente"])
+    
+    comparacion_data = pd.DataFrame({
+        'Métrica': ['Altura (m)', 'Salto Vertical (m)', 'Resistencia Cooper (m)'],
+        'Deportista': [altura_m, test_salto, test_cooper],
+        'Ideal ' + posicion: [ref["Altura"], ref["Salto"], ref["Cooper"]]
+    })
+    
+    st.bar_chart(
+        comparacion_data.set_index('Métrica')[['Deportista', 'Ideal ' + posicion]]
+    )
     
     # === RECOMENDACIONES ESPECÍFICAS Y REALISTAS ===
     st.subheader("💡 Recomendaciones Personalizadas")
