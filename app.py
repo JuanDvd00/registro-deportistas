@@ -78,9 +78,49 @@ columnas_modelo = [
 ]
 
 X = df_orig[columnas_modelo]
-y = df_orig['Altura_m'] + np.random.uniform(0.02, 0.08, len(df_orig))  # Simular crecimiento
+y = df_orig['Altura_m'] + np.random.uniform(0.02, 0.08, len(df_orig))
 modelo = RandomForestRegressor(n_estimators=100, random_state=42)
 modelo.fit(X, y)
+
+# === Función para recomendar posición en fútbol ===
+def recomendar_posicion_futbol(altura_m, test_salto, test_cooper, test_flex, per_muslo, per_pier):
+    """
+    Recomendación realista basada en características físicas
+    """
+    # Portero: alto + buen salto + buena envergadura
+    if altura_m >= 1.85 and test_salto >= 2.0:
+        return "Portero", "Alto, excelente reflejos y alcance vertical"
+    
+    # Defensa central: alto + fuerte + buena resistencia
+    elif altura_m >= 1.80 and test_cooper >= 2300 and per_muslo >= 50:
+        return "Defensa Central", "Dominio aéreo y juego físico"
+    
+    # Lateral: resistencia + velocidad + flexibilidad
+    elif test_cooper >= 2500 and test_salto >= 1.7 and test_flex >= 35:
+        return "Lateral", "Resistencia para subir y bajar, movilidad en banda"
+    
+    # Mediocampista defensivo: equilibrio + resistencia
+    elif test_cooper >= 2600 and per_muslo >= 48 and test_salto >= 1.6:
+        return "Mediocampista Defensivo", "Cobertura del campo y recuperación de balón"
+    
+    # Mediocampista ofensivo: técnica + visión
+    elif test_flex >= 40 and test_salto >= 1.7 and per_brazo_con >= 30:
+        return "Mediocampista Ofensivo", "Visión de juego y pases filtrados"
+    
+    # Extremo: velocidad + agilidad
+    elif test_salto >= 1.8 and test_flex >= 42 and per_pier >= 34:
+        return "Extremo", "Velocidad en banda y regates"
+    
+    # Delantero centro: definición + juego aéreo
+    elif altura_m >= 1.75 and test_salto >= 1.85 and per_muslo >= 52:
+        return "Delantero Centro", "Finalización y presencia en el área"
+    
+    # Segundo delantero: movilidad + remate
+    elif test_salto >= 1.75 and test_flex >= 38:
+        return "Segundo Delantero", "Movilidad sin balón y llegadas al área"
+    
+    else:
+        return "Jugador Polivalente", "Versatilidad para adaptarse a múltiples posiciones"
 
 # === Formulario principal ===
 st.title("🎯 Registro Completo de Deportista")
@@ -140,11 +180,18 @@ if submit:
     altura_predicha = modelo.predict(entrada)[0]
     crecimiento = altura_predicha - altura_m
     
+    # Recomendar posición
+    posicion, descripcion = recomendar_posicion_futbol(
+        altura_m, test_salto, test_cooper, test_flex, per_muslo, per_pier
+    )
+    
     # === ANÁLISIS REALISTA DE RESULTADOS ===
     st.success("✅ ¡Análisis completado!")
     st.subheader("📊 Resultados")
     st.write(f"**Altura actual:** {altura_m:.2f} m")
     st.write(f"**Altura proyectada a los 18:** {altura_predicha:.2f} m (+{crecimiento*100:.1f} cm)")
+    st.write(f"**Posición recomendada en fútbol:** 🥇 **{posicion}**")
+    st.write(f"*{descripcion}*")
     
     # === RECOMENDACIONES ESPECÍFICAS Y REALISTAS ===
     st.subheader("💡 Recomendaciones Personalizadas")
@@ -154,20 +201,14 @@ if submit:
     resistencia = test_cooper >= 2400
     potencia = test_salto >= 1.8
     flexibilidad = test_flex >= 40
-    composicion = (pl_tr + pl_abd) / 2 <= 15  # Bajo % grasa
+    composicion = (pl_tr + pl_abd) / 2 <= 15
     
     areas_debil = []
-    
-    if not fuerza_core:
-        areas_debil.append("fuerza del core")
-    if not resistencia:
-        areas_debil.append("resistencia aeróbica")
-    if not potencia:
-        areas_debil.append("potencia en piernas")
-    if not flexibilidad:
-        areas_debil.append("flexibilidad")
-    if not composicion:
-        areas_debil.append("composición corporal")
+    if not fuerza_core: areas_debil.append("fuerza del core")
+    if not resistencia: areas_debil.append("resistencia aeróbica")
+    if not potencia: areas_debil.append("potencia en piernas")
+    if not flexibilidad: areas_debil.append("flexibilidad")
+    if not composicion: areas_debil.append("composición corporal")
     
     if not areas_debil:
         st.success("✅ **Excelente perfil físico general.**")
@@ -175,20 +216,14 @@ if submit:
         st.write("- Considera periodización para picos de rendimiento.")
     else:
         st.warning(f"⚠️ **Áreas prioritarias para mejorar:** {', '.join(areas_debil)}")
-        
-        # Recomendaciones específicas
         if not fuerza_core:
             st.write("• **Core**: Realiza 3 series de 15 abdominales diarios + planchas de 30 segundos.")
-        
         if not resistencia:
             st.write("• **Resistencia**: Entrena 3 veces/semana con intervalos (2 min rápido + 1 min lento).")
-        
         if not potencia:
             st.write("• **Potencia**: Ejercicios de salto (pliometría) 2 veces/semana.")
-        
         if not flexibilidad:
             st.write("• **Flexibilidad**: Estiramientos estáticos post-entreno (30 segundos por grupo muscular).")
-        
         if not composicion:
             st.write("• **Composición**: Ajusta nutrición con apoyo de profesional; enfócate en proteína y déficit calórico suave.")
     
@@ -203,6 +238,8 @@ if submit:
         "Altura_Actual": altura_m,
         "Altura_Pred_18": altura_predicha,
         "Crecimiento_Esperado": crecimiento,
+        "Posicion_Futbol": posicion,
+        "Descripcion_Posicion": descripcion,
         "Pliegues_Totales": pl_tr + pl_sub + pl_ci + pl_abd + pl_mm + pl_pant,
         "Perimetros_Totales": per_brazo_rel + per_brazo_con + per_t + per_cin + per_cad + per_muslo + per_pier,
         "Test_Abd": test_abd,
@@ -230,5 +267,3 @@ if submit:
         pass
     
     st.download_button("📥 Descargar Excel", data=open(archivo, "rb").read(), file_name=archivo)
-
-
