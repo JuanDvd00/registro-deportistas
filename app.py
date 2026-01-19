@@ -2,10 +2,28 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
 from datetime import datetime
 import os
+import json
 import requests
+
+# === Archivo para guardar correos registrados ===
+USERS_FILE = "usuarios_registrados.json"
+
+# === Función para cargar/guardar usuarios ===
+def cargar_usuarios():
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, 'r') as f:
+            return json.load(f)
+    return {}
+
+def guardar_usuario(correo):
+    usuarios = cargar_usuarios()
+    if correo not in usuarios:
+        usuarios[correo] = {"fecha_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+        with open(USERS_FILE, 'w') as f:
+            json.dump(usuarios, f)
 
 # === Estado de sesión ===
 if 'logueado' not in st.session_state:
@@ -13,22 +31,42 @@ if 'logueado' not in st.session_state:
 if 'correo_entrenador' not in st.session_state:
     st.session_state.correo_entrenador = ""
 
-# === Pantalla de login ===
+# === Pantalla de autenticación ===
 if not st.session_state.logueado:
-    st.title("🔐 Inicio de Sesión")
-    st.markdown("Ingresa tu correo institucional para acceder al sistema.")
+    st.title("🔐 Sistema de Análisis Antropométrico Deportivo")
     
-    correo = st.text_input("Correo electrónico", placeholder="entrenador@academia.com")
-    if st.button("Iniciar sesión"):
-        if correo and "@" in correo and correo.endswith("@gmail.com"):
-            st.session_state.logueado = True
-            st.session_state.correo_entrenador = correo
-            st.rerun()
-        else:
-            st.error("❌ Por favor, ingresa un correo válido de Gmail.")
+    tab1, tab2 = st.tabs(["Iniciar Sesión", "Registrarse"])
+    
+    # === Pestaña: Iniciar Sesión ===
+    with tab1:
+        st.markdown("Ingresa el correo con el que te registraste:")
+        correo_login = st.text_input("Correo electrónico", key="login")
+        if st.button("Iniciar Sesión"):
+            usuarios = cargar_usuarios()
+            if correo_login in usuarios:
+                st.session_state.logueado = True
+                st.session_tate.correo_entrenador = correo_login
+                st.rerun()
+            else:
+                st.error("❌ Correo no registrado. Por favor, regístrate primero.")
+    
+    # === Pestaña: Registrarse ===
+    with tab2:
+        st.markdown("Regístrate con tu correo para acceder al sistema:")
+        correo_registro = st.text_input("Correo electrónico", key="registro")
+        if st.button("Registrarse"):
+            if correo_registro and "@" in correo_registro:
+                guardar_usuario(correo_registro)
+                st.success("✅ ¡Registro exitoso! Ahora puedes iniciar sesión.")
+                st.session_state.logueado = True
+                st.session_state.correo_entrenador = correo_registro
+                st.rerun()
+            else:
+                st.error("❌ Por favor, ingresa un correo válido.")
+    
     st.stop()
 
-# === Cargar datos y modelos ===
+# === Cargar datos y modelos (solo si está logueado) ===
 @st.cache_data
 def cargar_datos():
     df = pd.read_excel("ANTROPOMETRIA_10000.xlsx")
@@ -39,7 +77,7 @@ def cargar_datos():
 
 df_orig = cargar_datos()
 
-# === Entrenar modelos ===
+# === Entrenar modelo de altura futura ===
 X_altura = df_orig[['Edad', 'Peso', 'Altura_m', 'PlTr', 'PlAbd', 'Test_Salto', 'Test_Cooper']]
 y_altura = df_orig['Altura_m'] + np.random.uniform(0.02, 0.08, len(df_orig))
 modelo_altura = RandomForestRegressor(n_estimators=100, random_state=42)
@@ -74,16 +112,13 @@ with st.form("registro"):
     submit = st.form_submit_button("Registrar y Predecir")
 
 if submit:
-    # Corregir altura
+    # Procesar datos
     altura_m = altura / 100.0 if altura >= 100 else altura
-    
-    # Predecir altura futura
     entrada_altura = [[edad, peso, altura_m, pl_tr, pl_abd, test_salto, test_cooper]]
     altura_predicha = modelo_altura.predict(entrada_altura)[0]
     crecimiento = altura_predicha - altura_m
     
-    # === RECOMENDACIÓN DE POSICIÓN EN FÚTBOL ===
-    posicion = "General"
+    # Recomendación de posición
     if altura_m >= 1.85 and test_salto >= 2.0:
         posicion = "Portero"
     elif altura_m >= 1.80 and test_cooper >= 2500:
@@ -94,8 +129,10 @@ if submit:
         posicion = "Mediocampista"
     elif test_salto >= 1.9 and test_flex >= 40:
         posicion = "Delantero"
+    else:
+        posicion = "General"
     
-    # === CLASIFICACIÓN DE RENDIMIENTO ===
+    # Clasificación
     clasificacion = "Bueno"
     if test_salto < 1.6 or test_cooper < 2200 or test_flex < 30:
         clasificacion = "Malo"
@@ -104,35 +141,8 @@ if submit:
     
     # Mostrar resultados
     st.success("✅ ¡Registro completado!")
-    st.subheader("📊 Resultados")
-    st.write(f"**Altura actual:** {altura_m:.2f} m")
-    st.write(f"**Altura estimada a los 18 años:** {altura_predicha:.2f} m")
-    st.write(f"**Crecimiento esperado:** {crecimiento:+.2f} m")
-    st.write(f"**Posición recomendada en fútbol:** 🥇 **{posicion}**")
-    st.write(f"**Clasificación general:** {clasificacion}")
-    
-    # === RECOMENDACIONES PERSONALIZADAS ===
-    st.subheader("💡 Recomendaciones")
-    if clasificacion == "Malo":
-        st.warning("⚠️ **Áreas de mejora:**")
-        if test_salto < 1.6:
-            st.write("- Trabaja en ejercicios de salto vertical (pliometría)")
-        if test_cooper < 2200:
-            st.write("- Mejora resistencia con sesiones de intervalos")
-        if test_flex < 30:
-            st.write("- Realiza estiramientos diarios para mejorar flexibilidad")
-    else:
-        st.success("✅ **Fortalezas destacadas:**")
-        if posicion == "Portero":
-            st.write("- Excelente en reflejos y alcance vertical")
-        elif posicion == "Defensa Central":
-            st.write("- Buen control del área y juego aéreo")
-        elif posicion == "Lateral":
-            st.write("- Alta resistencia y movilidad en banda")
-        elif posicion == "Mediocampista":
-            st.write("- Equilibrio entre ataque y defensa")
-        elif posicion == "Delantero":
-            st.write("- Velocidad y finalización efectiva")
+    st.write(f"**Altura predicha:** {altura_predicha:.2f} m")
+    st.write(f"**Posición recomendada:** {posicion}")
     
     # Guardar en Excel
     nuevo_registro = {
@@ -150,7 +160,6 @@ if submit:
         "Salto_Vertical": test_salto,
         "Cooper": test_cooper,
         "Flexibilidad": test_flex,
-        "Pliegue_Abd": pl_abd,
         "Fecha_Registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     
@@ -163,12 +172,12 @@ if submit:
     
     df_nuevo.to_excel(archivo, index=False)
     
-    # === ENVIAR A MAKE VIA WEBHOOK ===
+    # Enviar a Make
     try:
-        webhook_url = "https://hook.make.com/tu-webhook-secreto"  # <-- Reemplazar con tu URL real
+        webhook_url = "https://hook.make.com/tu-webhook-secreto"  # <-- Reemplazar
         requests.post(webhook_url, json=nuevo_registro, timeout=5)
     except:
-        pass  # Silencioso si falla
+        pass
     
     st.download_button("📥 Descargar Excel", data=open(archivo, "rb").read(), file_name=archivo)
 
