@@ -69,7 +69,7 @@ if not st.session_state.logueado:
 # === Cargar datos y modelos (solo si está logueado) ===
 @st.cache_data
 def cargar_datos():
-    df = pd.read_excel("ANTROPOMETRIA_10000.xlsx")
+    df = pd.read_excel("ANTROPOMETRIA_10000_FINAL.xlsx")
     def corregir_altura(x):
         return x / 100.0 if x >= 100 else x
     df['Altura_m'] = df['Altura'].apply(corregir_altura)
@@ -180,4 +180,5 @@ if submit:
         pass
     
     st.download_button("📥 Descargar Excel", data=open(archivo, "rb").read(), file_name=archivo)
+
 
