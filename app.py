@@ -136,6 +136,7 @@ with st.form("registro"):
         st.subheader("Datos Básicos")
         nombre = st.text_input("Nombre")
         apellido = st.text_input("Apellido")
+        escuela = st.text_input("Escuela/Institución", value="Academia Alemana")  # ¡NUEVO CAMPO!
         edad = st.number_input("Edad", 13, 17, 15)
         peso = st.number_input("Peso (kg)", 40.0, 100.0, 60.0, 0.1)
         altura = st.number_input("Altura (cm)", 130.0, 200.0, 170.0, 1.0)
@@ -188,6 +189,7 @@ if submit:
     # === RESULTADOS PRINCIPALES ===
     st.success("✅ ¡Análisis completado!")
     st.subheader("📊 Resultados")
+    st.write(f"**Escuela:** {escuela}")  # ¡NUEVO CAMPO EN RESULTADOS!
     st.write(f"**Altura actual:** {altura_m:.2f} m")
     st.write(f"**Altura proyectada a los 18:** {altura_predicha:.2f} m (+{crecimiento*100:.1f} cm)")
     st.write(f"**Posición recomendada en fútbol:** 🥇 **{posicion}**")
@@ -278,6 +280,7 @@ if submit:
     nuevo_registro = {
         "ID": int(datetime.now().timestamp()),
         "Correo_Entrenador": st.session_state.correo_entrenador,
+        "Escuela": escuela,  # ¡NUEVO CAMPO EN EL REGISTRO!
         "Nombre": nombre,
         "Apellido": apellido,
         "Edad": edad,
