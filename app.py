@@ -8,10 +8,9 @@ import os
 import json
 import requests
 
-# === Archivo para guardar correos registrados ===
+# === Archivo para usuarios ===
 USERS_FILE = "usuarios_registrados.json"
 
-# === Función para cargar/guardar usuarios ===
 def cargar_usuarios():
     if os.path.exists(USERS_FILE):
         with open(USERS_FILE, 'r') as f:
@@ -34,39 +33,32 @@ if 'correo_entrenador' not in st.session_state:
 # === Pantalla de autenticación ===
 if not st.session_state.logueado:
     st.title("🔐 Sistema de Análisis Antropométrico Deportivo")
-    
     tab1, tab2 = st.tabs(["Iniciar Sesión", "Registrarse"])
     
-    # === Pestaña: Iniciar Sesión ===
     with tab1:
-        st.markdown("Ingresa el correo con el que te registraste:")
         correo_login = st.text_input("Correo electrónico", key="login")
         if st.button("Iniciar Sesión"):
             usuarios = cargar_usuarios()
             if correo_login in usuarios:
                 st.session_state.logueado = True
-                st.session_tate.correo_entrenador = correo_login
+                st.session_state.correo_entrenador = correo_login
                 st.rerun()
             else:
-                st.error("❌ Correo no registrado. Por favor, regístrate primero.")
+                st.error("❌ Correo no registrado.")
     
-    # === Pestaña: Registrarse ===
     with tab2:
-        st.markdown("Regístrate con tu correo para acceder al sistema:")
         correo_registro = st.text_input("Correo electrónico", key="registro")
         if st.button("Registrarse"):
             if correo_registro and "@" in correo_registro:
                 guardar_usuario(correo_registro)
-                st.success("✅ ¡Registro exitoso! Ahora puedes iniciar sesión.")
                 st.session_state.logueado = True
                 st.session_state.correo_entrenador = correo_registro
                 st.rerun()
             else:
-                st.error("❌ Por favor, ingresa un correo válido.")
-    
+                st.error("❌ Correo inválido.")
     st.stop()
 
-# === Cargar datos y modelos (solo si está logueado) ===
+# === Cargar datos ===
 @st.cache_data
 def cargar_datos():
     df = pd.read_excel("ANTROPOMETRIA_10000_FINAL.xlsx")
@@ -77,74 +69,130 @@ def cargar_datos():
 
 df_orig = cargar_datos()
 
-# === Entrenar modelo de altura futura ===
-X_altura = df_orig[['Edad', 'Peso', 'Altura_m', 'PlTr', 'PlAbd', 'Test_Salto', 'Test_Cooper']]
-y_altura = df_orig['Altura_m'] + np.random.uniform(0.02, 0.08, len(df_orig))
-modelo_altura = RandomForestRegressor(n_estimators=100, random_state=42)
-modelo_altura.fit(X_altura, y_altura)
+# === Entrenar modelo con todas las variables ===
+columnas_modelo = [
+    'Edad', 'Peso', 'Altura_m',
+    'PlTr', 'PlSubEsc', 'PlCI', 'PlAbd', 'PlMM', 'PlPant',
+    'PerBrazoRel', 'PerBrazoCon', 'PerT', 'PerCin', 'PerCad', 'PerMuslo', 'PerPier',
+    'Test_Abd', 'Test_FlexCLS', 'Test_Salto', 'Test_Cooper'
+]
+
+X = df_orig[columnas_modelo]
+y = df_orig['Altura_m'] + np.random.uniform(0.02, 0.08, len(df_orig))  # Simular crecimiento
+modelo = RandomForestRegressor(n_estimators=100, random_state=42)
+modelo.fit(X, y)
 
 # === Formulario principal ===
-st.title("🎯 Registro de Nuevo Deportista")
-st.write(f"👤 Sesión iniciada como: {st.session_state.correo_entrenador}")
+st.title("🎯 Registro Completo de Deportista")
+st.write(f"👤 Sesión: {st.session_state.correo_entrenador}")
 if st.button("Cerrar sesión"):
     st.session_state.logueado = False
     st.rerun()
 
 with st.form("registro"):
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
+    
     with col1:
+        st.subheader("Datos Básicos")
         nombre = st.text_input("Nombre")
         apellido = st.text_input("Apellido")
-        edad = st.number_input("Edad", min_value=13, max_value=17, value=15)
-        peso = st.number_input("Peso (kg)", min_value=40.0, max_value=100.0, value=60.0, step=0.1)
-        altura = st.number_input("Altura (m o cm)", min_value=130.0, max_value=200.0, value=170.0, step=1.0)
+        edad = st.number_input("Edad", 13, 17, 15)
+        peso = st.number_input("Peso (kg)", 40.0, 100.0, 60.0, 0.1)
+        altura = st.number_input("Altura (cm)", 130.0, 200.0, 170.0, 1.0)
+        
+        st.subheader("Pliegues (mm)")
+        pl_tr = st.number_input("Tricipital", 5, 30, 12)
+        pl_sub = st.number_input("Subescapular", 5, 30, 10)
+        pl_ci = st.number_input("Cresta Ilíaca", 5, 30, 12)
+        pl_abd = st.number_input("Abdominal", 5, 30, 10)
+        pl_mm = st.number_input("Muslo Medial", 5, 30, 12)
+        pl_pant = st.number_input("Pantorrilla", 5, 30, 8)
     
     with col2:
-        st.subheader("Pruebas Físicas")
-        test_salto = st.number_input("Salto Vertical (m)", min_value=1.0, max_value=2.6, value=1.8, step=0.01)
-        test_cooper = st.number_input("Prueba Cooper (m)", min_value=1000, max_value=3500, value=2500)
-        test_flex = st.number_input("Flexibilidad (cm)", min_value=10, max_value=60, value=35)
-        
-        st.subheader("Pliegues Cutáneos (mm)")
-        pl_tr = st.number_input("Pliegue Tricipital", min_value=5, max_value=30, value=12)
-        pl_abd = st.number_input("Pliegue Abdominal", min_value=5, max_value=30, value=10)
+        st.subheader("Perímetros (cm)")
+        per_brazo_rel = st.number_input("Brazo Relajado", 20.0, 40.0, 28.0, 0.1)
+        per_brazo_con = st.number_input("Brazo Contraído", 25.0, 45.0, 32.0, 0.1)
+        per_t = st.number_input("Tórax", 70.0, 100.0, 85.0, 0.1)
+        per_cin = st.number_input("Cintura", 60.0, 90.0, 75.0, 0.1)
+        per_cad = st.number_input("Cadera", 80.0, 100.0, 90.0, 0.1)
+        per_muslo = st.number_input("Muslo", 40.0, 60.0, 52.0, 0.1)
+        per_pier = st.number_input("Pierna", 30.0, 40.0, 35.0, 0.1)
     
-    submit = st.form_submit_button("Registrar y Predecir")
+    with col3:
+        st.subheader("Pruebas Físicas")
+        test_abd = st.number_input("Abdominales (30s)", 10, 50, 25)
+        test_flex = st.number_input("Flexibilidad (cm)", 10, 60, 35)
+        test_salto = st.number_input("Salto Vertical (m)", 1.0, 2.6, 1.8, 0.01)
+        test_cooper = st.number_input("Cooper (m/12min)", 1000, 3500, 2500)
+
+    submit = st.form_submit_button("Registrar y Analizar")
 
 if submit:
     # Procesar datos
-    altura_m = altura / 100.0 if altura >= 100 else altura
-    entrada_altura = [[edad, peso, altura_m, pl_tr, pl_abd, test_salto, test_cooper]]
-    altura_predicha = modelo_altura.predict(entrada_altura)[0]
+    altura_m = altura / 100.0
+    entrada = [[
+        edad, peso, altura_m,
+        pl_tr, pl_sub, pl_ci, pl_abd, pl_mm, pl_pant,
+        per_brazo_rel, per_brazo_con, per_t, per_cin, per_cad, per_muslo, per_pier,
+        test_abd, test_flex, test_salto, test_cooper
+    ]]
+    
+    altura_predicha = modelo.predict(entrada)[0]
     crecimiento = altura_predicha - altura_m
     
-    # Recomendación de posición
-    if altura_m >= 1.85 and test_salto >= 2.0:
-        posicion = "Portero"
-    elif altura_m >= 1.80 and test_cooper >= 2500:
-        posicion = "Defensa Central"
-    elif test_cooper >= 2600 and test_flex >= 40:
-        posicion = "Lateral"
-    elif test_salto >= 1.8 and test_cooper >= 2400:
-        posicion = "Mediocampista"
-    elif test_salto >= 1.9 and test_flex >= 40:
-        posicion = "Delantero"
+    # === ANÁLISIS REALISTA DE RESULTADOS ===
+    st.success("✅ ¡Análisis completado!")
+    st.subheader("📊 Resultados")
+    st.write(f"**Altura actual:** {altura_m:.2f} m")
+    st.write(f"**Altura proyectada a los 18:** {altura_predicha:.2f} m (+{crecimiento*100:.1f} cm)")
+    
+    # === RECOMENDACIONES ESPECÍFICAS Y REALISTAS ===
+    st.subheader("💡 Recomendaciones Personalizadas")
+    
+    # Evaluación por áreas
+    fuerza_core = test_abd >= 30
+    resistencia = test_cooper >= 2400
+    potencia = test_salto >= 1.8
+    flexibilidad = test_flex >= 40
+    composicion = (pl_tr + pl_abd) / 2 <= 15  # Bajo % grasa
+    
+    areas_debil = []
+    
+    if not fuerza_core:
+        areas_debil.append("fuerza del core")
+    if not resistencia:
+        areas_debil.append("resistencia aeróbica")
+    if not potencia:
+        areas_debil.append("potencia en piernas")
+    if not flexibilidad:
+        areas_debil.append("flexibilidad")
+    if not composicion:
+        areas_debil.append("composición corporal")
+    
+    if not areas_debil:
+        st.success("✅ **Excelente perfil físico general.**")
+        st.write("- Mantén el programa actual de entrenamiento.")
+        st.write("- Considera periodización para picos de rendimiento.")
     else:
-        posicion = "General"
+        st.warning(f"⚠️ **Áreas prioritarias para mejorar:** {', '.join(areas_debil)}")
+        
+        # Recomendaciones específicas
+        if not fuerza_core:
+            st.write("• **Core**: Realiza 3 series de 15 abdominales diarios + planchas de 30 segundos.")
+        
+        if not resistencia:
+            st.write("• **Resistencia**: Entrena 3 veces/semana con intervalos (2 min rápido + 1 min lento).")
+        
+        if not potencia:
+            st.write("• **Potencia**: Ejercicios de salto (pliometría) 2 veces/semana.")
+        
+        if not flexibilidad:
+            st.write("• **Flexibilidad**: Estiramientos estáticos post-entreno (30 segundos por grupo muscular).")
+        
+        if not composicion:
+            st.write("• **Composición**: Ajusta nutrición con apoyo de profesional; enfócate en proteína y déficit calórico suave.")
     
-    # Clasificación
-    clasificacion = "Bueno"
-    if test_salto < 1.6 or test_cooper < 2200 or test_flex < 30:
-        clasificacion = "Malo"
-    elif test_salto >= 1.9 and test_cooper >= 2700 and test_flex >= 45:
-        clasificacion = "Excelente"
-    
-    # Mostrar resultados
-    st.success("✅ ¡Registro completado!")
-    st.write(f"**Altura predicha:** {altura_predicha:.2f} m")
-    st.write(f"**Posición recomendada:** {posicion}")
-    
-    # Guardar en Excel
+    # Guardar registro
     nuevo_registro = {
         "ID": int(datetime.now().timestamp()),
         "Correo_Entrenador": st.session_state.correo_entrenador,
@@ -155,11 +203,13 @@ if submit:
         "Altura_Actual": altura_m,
         "Altura_Pred_18": altura_predicha,
         "Crecimiento_Esperado": crecimiento,
-        "Posicion_Futbol": posicion,
-        "Clasificacion": clasificacion,
-        "Salto_Vertical": test_salto,
-        "Cooper": test_cooper,
-        "Flexibilidad": test_flex,
+        "Pliegues_Totales": pl_tr + pl_sub + pl_ci + pl_abd + pl_mm + pl_pant,
+        "Perimetros_Totales": per_brazo_rel + per_brazo_con + per_t + per_cin + per_cad + per_muslo + per_pier,
+        "Test_Abd": test_abd,
+        "Test_FlexCLS": test_flex,
+        "Test_Salto": test_salto,
+        "Test_Cooper": test_cooper,
+        "Areas_Debil": ", ".join(areas_debil) if areas_debil else "Ninguna",
         "Fecha_Registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     
@@ -174,7 +224,7 @@ if submit:
     
     # Enviar a Make
     try:
-        webhook_url = "https://hook.make.com/tu-webhook-secreto"  # <-- Reemplazar
+        webhook_url = "https://hook.make.com/tu-webhook-secreto"
         requests.post(webhook_url, json=nuevo_registro, timeout=5)
     except:
         pass
