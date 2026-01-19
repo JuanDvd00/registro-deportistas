@@ -133,10 +133,12 @@ with st.form("registro"):
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.subheader("Datos Básicos")
+        st.subheader("Identificación")
+        id_deportista = st.text_input("ID del Deportista", help="Ej: ALE-001, COL-045")  # ¡NUEVO CAMPO!
         nombre = st.text_input("Nombre")
         apellido = st.text_input("Apellido")
-        escuela = st.text_input("Escuela/Institución", value="Academia Alemana")  # ¡NUEVO CAMPO!
+        nombre_entrenador = st.text_input("Nombre del Entrenador", value="Entrenador Principal")  # ¡NUEVO CAMPO!
+        escuela = st.text_input("Escuela/Institución", value="Academia Alemana")
         edad = st.number_input("Edad", 13, 17, 15)
         peso = st.number_input("Peso (kg)", 40.0, 100.0, 60.0, 0.1)
         altura = st.number_input("Altura (cm)", 130.0, 200.0, 170.0, 1.0)
@@ -169,6 +171,11 @@ with st.form("registro"):
     submit = st.form_submit_button("Registrar y Analizar")
 
 if submit:
+    # Validar ID del deportista
+    if not id_deportista:
+        st.error("❌ Por favor, ingresa un ID válido para el deportista.")
+        st.stop()
+    
     # Procesar datos
     altura_m = altura / 100.0
     entrada = [[
@@ -189,7 +196,9 @@ if submit:
     # === RESULTADOS PRINCIPALES ===
     st.success("✅ ¡Análisis completado!")
     st.subheader("📊 Resultados")
-    st.write(f"**Escuela:** {escuela}")  # ¡NUEVO CAMPO EN RESULTADOS!
+    st.write(f"**ID del Deportista:** {id_deportista}")  # ¡NUEVO EN RESULTADOS!
+    st.write(f"**Registrado por:** {nombre_entrenador}")  # ¡NUEVO EN RESULTADOS!
+    st.write(f"**Escuela:** {escuela}")
     st.write(f"**Altura actual:** {altura_m:.2f} m")
     st.write(f"**Altura proyectada a los 18:** {altura_predicha:.2f} m (+{crecimiento*100:.1f} cm)")
     st.write(f"**Posición recomendada en fútbol:** 🥇 **{posicion}**")
@@ -278,9 +287,10 @@ if submit:
     
     # Guardar registro
     nuevo_registro = {
-        "ID": int(datetime.now().timestamp()),
+        "ID_Deportista": id_deportista,  # ¡NUEVO CAMPO!
+        "Nombre_Entrenador": nombre_entrenador,  # ¡NUEVO CAMPO!
         "Correo_Entrenador": st.session_state.correo_entrenador,
-        "Escuela": escuela,  # ¡NUEVO CAMPO EN EL REGISTRO!
+        "Escuela": escuela,
         "Nombre": nombre,
         "Apellido": apellido,
         "Edad": edad,
@@ -317,3 +327,4 @@ if submit:
         pass
     
     st.download_button("📥 Descargar Excel", data=open(archivo, "rb").read(), file_name=archivo)
+
